@@ -1,359 +1,327 @@
-# Hướng Dẫn Thực Hành: Lập Trình C và Quản Lý Tiến Trình trên Linux
-
-> **Mục tiêu:** Làm quen với môi trường lập trình C trên Linux, sử dụng các công cụ gcc, make, gdb và thực hành quản lý tiến trình/tiểu trình.
+# Bài Tập Ôn Tập — Lab 3: Tiến Trình và Tiểu Trình
 
 ---
 
-## Bài 01 — Cài Đặt Công Cụ Cần Thiết
+# Bài Tập 1 — Quan Hệ Cha-Con Giữa Các Tiến Trình
 
-### Mục tiêu
-Chuẩn bị đầy đủ môi trường phát triển trước khi bắt đầu lập trình.
+---
 
-### Các bước thực hiện
+## Phần 1a — Vẽ cây quan hệ cha-con
 
-```bash
-apt-get install vim build-essential gdb
+Dựa vào bảng dữ liệu trong đề bài:
+
+| UID | PID | PPID | COMMAND      |
+|-----|-----|------|--------------|
+| 88  | 86  | 1    | WindowServer |
+| 501 | 281 | 86   | iTunes       |
+| 501 | 282 | 86   | Terminal     |
+| 0   | 287 | 282  | login        |
+| 501 | 461 | 293  | firefox-bin  |
+| 501 | 531 | 86   | Safari       |
+| 501 | 726 | 86   | Mail         |
+| 501 | 751 | 293  | Aquamacs     |
+| 501 | 293 | 287  | -bash        |
+
+Cách đọc: mỗi tiến trình có PPID là PID của tiến trình cha. Ví dụ tiến trình 282 (Terminal) có PPID = 86 → cha là WindowServer.
+
+### Cây quan hệ parent-child
+
 ```
-
-| Công cụ | Vai trò |
-|---------|---------|
-| `vim` | Soạn thảo mã nguồn trực tiếp trên terminal |
-| `gcc` | Trình biên dịch C (GNU Compiler Collection) |
-| `make` | Tự động hóa quá trình biên dịch qua Makefile |
-| `gdb` | Gỡ lỗi chương trình (GNU Debugger) |
-
-### Kiểm tra cài đặt thành công
-
-```bash
-gcc --version
-make --version
-gdb --version
+1 (init)
+└── 86 WindowServer
+    ├── 281 iTunes
+    ├── 282 Terminal
+    │   └── 287 login
+    │       └── 293 -bash
+    │           ├── 461 firefox-bin
+    │           └── 751 Aquamacs
+    ├── 531 Safari
+    └── 726 Mail
 ```
 
 ---
 
-## Bài 02 — Viết Chương Trình Hello World
+## Phần 1b — Dùng lệnh ps tìm tiến trình cha
 
-### Mục tiêu
-Tạo file C đầu tiên, làm quen với vim và cú pháp cơ bản.
+Lệnh `ps -f` liệt kê các tiến trình kèm thông tin đầy đủ, trong đó có cột **PPID** là PID của tiến trình cha.
 
-### Các bước thực hiện
-
-**Bước 1:** Mở vim để tạo file mới
+### Xem tất cả tiến trình hiện tại
 
 ```bash
-vim hello.c
+ps -f
 ```
 
-**Bước 2:** Nhấn `i` để vào chế độ INSERT, nhập mã nguồn sau:
+### Tìm cha của một tiến trình cụ thể theo PID
 
-```c
-#include <stdio.h>
-
-int main() {
-    printf("Hello, I am Nguyen Van A\n");
-    return 0;
-}
+```bash
+ps -f -p <PID cần tìm>
 ```
 
-> Thay `Nguyen Van A` bằng tên thật của bạn.
+### Ví dụ
 
-**Bước 3:** Lưu và thoát vim
+```bash
+ps -f -p 282
+```
 
-- Nhấn `Esc` để thoát chế độ INSERT
-- Gõ `:wq` rồi Enter để lưu và thoát
+Kết quả:
 
-### Các lệnh vim cơ bản cần nhớ
+```
+UID   PID  PPID  CMD
+501   282    86  Terminal
+```
 
-| Lệnh | Chức năng |
-|------|-----------|
-| `i` | Vào chế độ chèn (INSERT) |
-| `Esc` | Trở về chế độ thường (NORMAL) |
-| `:w` | Lưu file |
-| `:q` | Thoát vim |
-| `:wq` | Lưu và thoát |
-| `:q!` | Thoát không lưu |
+Nhìn vào cột **PPID = 86** → tiến trình cha của 282 là **WindowServer (86)**.
 
 ---
 
-## Bài 03 — Biên Dịch và Chạy Chương Trình
+## Phần 1c — Cài đặt và dùng pstree
 
-### Mục tiêu
-Sử dụng gcc để biên dịch mã nguồn thành file thực thi.
-
-### Các bước thực hiện
-
-**Bước 1:** Biên dịch bằng gcc
+### Cài pstree
 
 ```bash
-gcc hello.c -o hello
+sudo apt-get install psmisc
 ```
 
-- `hello.c` — file mã nguồn đầu vào
-- `-o hello` — chỉ định tên file thực thi đầu ra
+Nhập mật khẩu, nhấn `Y` rồi Enter khi được hỏi.
 
-**Bước 2:** Chạy chương trình
+### Xem toàn bộ cây tiến trình
 
 ```bash
-./hello
+pstree -p
 ```
 
-**Kết quả mong đợi:**
+### Tìm cha của một tiến trình theo PID
+
+```bash
+pstree -s -p <PID cần tìm>
+```
+
+### Ví dụ tìm cha của firefox-bin (PID 461)
+
+```bash
+pstree -s -p 461
+```
+
+Kết quả:
 
 ```
-Hello, I am Nguyen Van A
+init(1)───WindowServer(86)───-bash(293)───firefox-bin(461)
 ```
 
-### Các flag gcc thường dùng
+Đọc từ trái sang phải — tiến trình cha trực tiếp của **461** là **-bash (293)**.
 
-| Flag | Ý nghĩa |
+### Giải thích các option của pstree
+
+| Option | Ý nghĩa |
+|--------|---------|
+| `-p` | Hiển thị kèm PID |
+| `-s` | Hiển thị ngược lên tiến trình cha (show parents) |
+
+---
+
+## Tổng kết — Lệnh cần nhớ
+
+| Lệnh | Tác dụng |
 |------|---------|
-| `-o <tên>` | Đặt tên file thực thi |
-| `-Wall` | Bật tất cả cảnh báo |
-| `-g` | Thêm thông tin debug (dùng với gdb) |
-| `-pthread` | Liên kết thư viện POSIX threads |
+| `ps -f` | Liệt kê tiến trình hiện tại kèm thông tin đầy đủ |
+| `ps -f -p <PID>` | Xem thông tin tiến trình theo PID, nhìn cột PPID để biết cha |
+| `pstree -p` | Xem toàn bộ cây tiến trình kèm PID |
+| `pstree -s -p <PID>` | Tìm chuỗi cha của tiến trình theo PID |
 
 ---
 
-## Bài 04 — Tổ Chức Project với Makefile
+## Bài tập 2 — Chương trình in ra gì?
 
-### Mục tiêu
-Dùng `make` để tự động hóa việc biên dịch, chạy và dọn dẹp project.
-
-### Các bước thực hiện
-
-**Bước 1:** Tạo Makefile
-
-```bash
-vim Makefile
-```
-
-**Bước 2:** Nhập nội dung sau (chú ý dùng **TAB** thụt đầu dòng, không dùng space):
-
-```makefile
-CC = gcc
-CFLAGS = -Wall
-
-all: hello run
-
-hello: hello.c
-	$(CC) $(CFLAGS) hello.c -o hello
-
-run: hello
-	./hello
-
-clean:
-	rm -f hello
-```
-
-**Bước 3:** Chạy make
-
-```bash
-make all      # Biên dịch và chạy chương trình
-make clean    # Xóa file thực thi
-make hello    # Chỉ biên dịch
-make run      # Chỉ chạy (nếu đã biên dịch)
-```
-
-> **Lưu ý quan trọng:** Dòng lệnh trong Makefile **bắt buộc** phải dùng ký tự TAB, không phải space. Nếu dùng space, `make` sẽ báo lỗi.
-
----
-
-## Bài 05 — Thực Hành Gỡ Lỗi với GDB
-
-### Mục tiêu
-Sử dụng gdb để tìm và sửa lỗi trong chương trình tính giai thừa (factorial).
-
-### Chuẩn bị: Tạo file factorial.c có lỗi
+### Mã nguồn
 
 ```c
 #include <stdio.h>
-
-int factorial(int n) {
-    int result;        // Lỗi: chưa khởi tạo biến result!
-    int j = 1;
-    for (j = 1; j <= n; j++) {
-        result *= j;   // result chứa giá trị rác → kết quả sai
-    }
-    return result;
-}
-
 int main() {
-    printf("5! = %d\n", factorial(5));
-    return 0;
+    pid_t pid;
+    int num_coconuts = 17;
+    pid = fork();
+    if (pid == 0) {
+        num_coconuts = 42;
+        exit(0);
+    } else {
+        wait(NULL); /* wait until the child terminates */
+    }
+    printf("I see %d coconuts!\n", num_coconuts);
+    exit(0);
 }
 ```
 
-### Các bước gỡ lỗi
-
-**Bước 1:** Biên dịch với flag `-g` để thêm thông tin debug
-
-```bash
-gcc -g factorial.c -o factorial
-```
-
-**Bước 2:** Khởi động gdb
-
-```bash
-gdb ./factorial
-```
-
-**Bước 3:** Thực hiện các lệnh gdb
+### Kết quả in ra
 
 ```
-(gdb) break factorial      # Đặt breakpoint tại hàm factorial
-(gdb) run                  # Chạy chương trình
-(gdb) print result         # Xem giá trị biến result (sẽ thấy giá trị rác)
-(gdb) print j              # Xem biến j
-(gdb) next                 # Chạy từng dòng
-(gdb) continue             # Tiếp tục chạy đến breakpoint tiếp theo
-(gdb) quit                 # Thoát gdb
+I see 17 coconuts!
 ```
 
-### Sửa lỗi
+### Giải thích
 
-Thay dòng `int result;` thành `int result = 1;` trong `factorial.c`, rồi biên dịch và chạy lại.
+Khi `fork()` được gọi, hệ điều hành tạo ra một bản sao của tiến trình cha. Mỗi tiến trình có **vùng nhớ riêng biệt**, do đó biến `num_coconuts` ở tiến trình con và tiến trình cha là **hai biến độc lập**.
 
-### Tổng hợp lệnh gdb hay dùng
-
-| Lệnh | Ý nghĩa |
-|------|---------|
-| `break <tên_hàm>` | Đặt breakpoint tại hàm |
-| `break <số_dòng>` | Đặt breakpoint tại dòng |
-| `run` | Chạy chương trình |
-| `next` | Chạy dòng tiếp theo (không vào hàm con) |
-| `step` | Chạy dòng tiếp theo (vào trong hàm con) |
-| `print <biến>` | In giá trị biến |
-| `info locals` | Liệt kê tất cả biến cục bộ |
-| `continue` | Tiếp tục chạy đến breakpoint tiếp |
-| `quit` | Thoát gdb |
+- Tiến trình con (`pid == 0`): đổi `num_coconuts = 42` rồi gọi `exit(0)` — kết thúc ngay, không in gì.
+- Tiến trình cha (`pid > 0`): chờ con kết thúc bằng `wait(NULL)`, sau đó in giá trị `num_coconuts` của chính nó — vẫn là **17** vì chưa bị thay đổi.
 
 ---
 
-## Bài 06 — Quản Lý Tiến Trình trong Linux
+## Bài tập 3 — Thuộc tính của pthread
 
-### Mục tiêu
-Nắm vững các lệnh theo dõi và điều khiển tiến trình trên Linux.
-
-### 6.1 Xem tiến trình đang chạy
-
-```bash
-top               # Xem tiến trình theo thời gian thực (nhấn q để thoát)
-ps -f             # Liệt kê tiến trình của phiên hiện tại (dạng đầy đủ)
-ps aux            # Liệt kê tất cả tiến trình trên hệ thống
-```
-
-Các cột quan trọng trong `ps -f`:
-
-| Cột | Ý nghĩa |
-|-----|---------|
-| `PID` | Process ID (định danh tiến trình) |
-| `PPID` | Parent PID (tiến trình cha) |
-| `CMD` | Lệnh đã khởi chạy tiến trình |
-| `%CPU` | Phần trăm CPU đang dùng |
-
-### 6.2 Chạy tiến trình ở background và foreground
-
-```bash
-./hello &         # Chạy tiến trình ở background (thêm dấu &)
-jobs              # Liệt kê các job đang chạy ở background
-fg %1             # Đưa job số 1 lên foreground
-bg %1             # Tiếp tục chạy job số 1 ở background
-```
-
-### 6.3 Tạm dừng và chấm dứt tiến trình
-
-```bash
-Ctrl + Z          # Tạm dừng tiến trình đang chạy (suspend)
-Ctrl + C          # Kết thúc tiến trình đang chạy (interrupt)
-kill <PID>        # Gửi tín hiệu TERM để dừng tiến trình
-kill -9 <PID>     # Buộc dừng tiến trình ngay lập tức
-```
-
----
-
-## Bài 07 — Thực Hành với Tiểu Trình (pthread)
-
-### Mục tiêu
-Viết chương trình tạo nhiều tiểu trình chạy song song bằng thư viện POSIX threads.
-
-### Chuẩn bị: Tạo file mythread.c
-
-```c
-#include <stdio.h>
-#include <pthread.h>
-#include <unistd.h>
-
-#define NUM_THREADS 3
-
-void *thread_function(void *arg) {
-    int thread_id = *(int *)arg;
-    printf("Tiểu trình %d đang chạy...\n", thread_id);
-    sleep(1);
-    printf("Tiểu trình %d kết thúc.\n", thread_id);
-    return NULL;
-}
-
-int main() {
-    pthread_t threads[NUM_THREADS];
-    int thread_ids[NUM_THREADS];
-
-    // Tạo các tiểu trình
-    for (int i = 0; i < NUM_THREADS; i++) {
-        thread_ids[i] = i + 1;
-        pthread_create(&threads[i], NULL, thread_function, &thread_ids[i]);
-        printf("Đã tạo tiểu trình %d\n", i + 1);
-    }
-
-    // Chờ tất cả tiểu trình kết thúc
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    printf("Tất cả tiểu trình đã kết thúc.\n");
-    return 0;
-}
-```
-
-### Các bước thực hiện
-
-**Bước 1:** Biên dịch với flag `-pthread`
-
-```bash
-gcc -pthread mythread.c -o mythread
-```
-
-**Bước 2:** Chạy chương trình
-
-```bash
-./mythread
-```
-
-**Bước 3:** Quan sát kết quả — các tiểu trình chạy **xen kẽ không theo thứ tự cố định**, thể hiện tính song song.
-
-### Các hàm pthread cơ bản
+### Các hàm pthread_attr_* thường dùng
 
 | Hàm | Chức năng |
 |-----|-----------|
-| `pthread_create(thread, attr, func, arg)` | Tạo tiểu trình mới |
-| `pthread_join(thread, retval)` | Chờ tiểu trình kết thúc |
-| `pthread_exit(retval)` | Kết thúc tiểu trình hiện tại |
-| `pthread_self()` | Lấy ID tiểu trình hiện tại |
+| `pthread_attr_init(&attr)` | Khởi tạo đối tượng thuộc tính |
+| `pthread_attr_destroy(&attr)` | Giải phóng đối tượng thuộc tính |
+| `pthread_attr_setdetachstate(&attr, state)` | Đặt trạng thái joinable/detached |
+| `pthread_attr_setstacksize(&attr, size)` | Đặt kích thước stack |
+| `pthread_attr_setschedpolicy(&attr, policy)` | Đặt chính sách lập lịch |
+| `pthread_attr_setschedparam(&attr, &param)` | Đặt tham số lập lịch (độ ưu tiên) |
+
+### Chương trình minh họa
+
+```c
+/*######################################
+# University of Information Technology #
+# IT007 Operating System               #
+# <Your name>, <your Student ID>       #
+# File: bai3_pthread_attr.c            #
+######################################*/
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void *thread_func(void *arg) {
+    int id = *(int *)arg;
+    printf("Thread %d dang chay voi stack size tuy chinh\n", id);
+    pthread_exit(NULL);
+}
+
+int main() {
+    pthread_t tid[2];
+    pthread_attr_t attr;
+    int ids[2] = {1, 2};
+
+    // Khoi tao thuoc tinh
+    pthread_attr_init(&attr);
+
+    // Dat trang thai joinable (co the goi pthread_join)
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+    // Dat kich thuoc stack la 1MB
+    pthread_attr_setstacksize(&attr, 1024 * 1024);
+
+    // Tao 2 tieu trinh voi thuoc tinh tuy chinh
+    for (int i = 0; i < 2; i++) {
+        int rc = pthread_create(&tid[i], &attr, thread_func, &ids[i]);
+        if (rc != 0) {
+            printf("ERROR: Khong the tao thread %d\n", i);
+            exit(-1);
+        }
+    }
+
+    // Giai phong doi tuong thuoc tinh sau khi tao xong
+    pthread_attr_destroy(&attr);
+
+    // Cho cac tieu trinh ket thuc
+    for (int i = 0; i < 2; i++) {
+        pthread_join(tid[i], NULL);
+    }
+
+    printf("Tat ca tieu trinh da ket thuc.\n");
+    return 0;
+}
+```
+
+### Biên dịch và chạy
+
+```bash
+gcc -pthread bai3_pthread_attr.c -o bai3_pthread_attr
+./bai3_pthread_attr
+```
+
+### Kết quả mong đợi
+
+```
+Thread 1 dang chay voi stack size tuy chinh
+Thread 2 dang chay voi stack size tuy chinh
+Tat ca tieu trinh da ket thuc.
+```
 
 ---
 
-## Tổng Kết
+## Bài tập 4 — Mở vim và bắt Ctrl+C
 
-| Bài | Kỹ năng đạt được |
-|-----|-----------------|
-| 01 | Cài đặt môi trường lập trình C trên Linux |
-| 02 | Soạn thảo mã nguồn với vim |
-| 03 | Biên dịch và chạy chương trình C với gcc |
-| 04 | Tổ chức project và tự động hóa với Makefile |
-| 05 | Gỡ lỗi chương trình bằng gdb |
-| 06 | Quản lý tiến trình với top, ps, jobs, fg, bg |
-| 07 | Lập trình đa tiểu trình với pthread |
+### Yêu cầu
+
+- In ra dòng chào với mã số sinh viên
+- Mở file `abcd.txt` bằng vim
+- Khi người dùng nhấn **Ctrl+C**: tắt vim và in thông báo tạm biệt
+
+### Chương trình
+
+```c
+/*######################################
+# University of Information Technology #
+# IT007 Operating System               #
+# <Your name>, <your Student ID>       #
+# File: bai4_signal_vim.c              #
+######################################*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+
+void on_sigint() {
+    printf("\nYou are pressed CTRL+C! Goodbye!\n");
+    system("pkill vim");   // tat vim editor
+    exit(0);
+}
+
+int main() {
+    // Buoc a: in dong chao
+    printf("Welcome to IT007, I am <your_Student_ID>!\n");
+
+    // Dang ky bat tin hieu SIGINT (Ctrl+C)
+    signal(SIGINT, on_sigint);
+
+    // Buoc b: mo abcd.txt bang vim
+    system("vim abcd.txt");
+
+    return 0;
+}
+```
+
+### Biên dịch và chạy
+
+```bash
+gcc bai4_signal_vim.c -o bai4_signal_vim
+./bai4_signal_vim
+```
+
+### Luồng hoạt động
+
+```
+Chạy chương trình
+      ↓
+In: "Welcome to IT007, I am <your_Student_ID>!"
+      ↓
+Mở vim abcd.txt
+      ↓
+Người dùng nhấn Ctrl+C
+      ↓
+Bắt SIGINT → gọi on_sigint()
+      ↓
+In: "You are pressed CTRL+C! Goodbye!"
+      ↓
+Tắt vim → thoát chương trình
+```
+
+### Lưu ý
+
+- Thay `<your_Student_ID>` bằng mã số sinh viên thực tế của bạn.
+- Lệnh `pkill vim` sẽ tắt tất cả tiến trình vim đang chạy trên hệ thống. Nếu chỉ muốn tắt vim được mở bởi chương trình này, cần lưu PID của tiến trình vim và dùng `kill <PID>`.
 
 ---
-
-*Tài liệu hướng dẫn thực hành — Lập trình hệ thống trên Linux*
